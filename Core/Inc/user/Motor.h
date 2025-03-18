@@ -32,9 +32,10 @@ class Encoder {
 public:
     Encoder(uint8_t motornum_);
     void read_cnt();
-    float enc_getSpeed();
+    void enc_getSpeed();
 // private:
     int16_t cnt;
+    float mt_speed;
     TIM_HandleTypeDef* timx;
 };
 
@@ -57,9 +58,12 @@ public:
     void setSpeed(float v, float w);
     void robotUpdate();
     void speedToCCR(float speed1, float speed2);
+    void clearRobotOdom();
     Motor mt1;
     Motor mt2;
 private:
+    float robotOdom;
+    float robotSpeed;
     const float L = 0.2;// 车轮间距
 };
 

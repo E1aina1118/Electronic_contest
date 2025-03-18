@@ -51,9 +51,9 @@ void Encoder::read_cnt()
 {
     cnt = (int16_t)__HAL_TIM_GET_COUNTER(timx);
 }
-float Encoder::enc_getSpeed()
+void Encoder::enc_getSpeed()
 {
-    return -(cnt * 0.065 * 3.14)/(0.02 * 897.6);
+    mt_speed = -(cnt * 0.065 * 3.14)/(0.02 * 897.6);
 }
 
 // Motor
@@ -161,9 +161,18 @@ void RobotControl::setSpeed(float v, float w)
 
 void RobotControl::robotUpdate()
 {
-    mt1.pid.pid_setCurrent(mt1.enc.enc_getSpeed());
-    mt2.pid.pid_setCurrent(mt2.enc.enc_getSpeed());
+    mt1.enc.enc_getSpeed();
+    mt2.enc.enc_getSpeed();
+    mt1.pid.pid_setCurrent(mt1.enc.mt_speed);
+    mt2.pid.pid_setCurrent(mt2.enc.mt_speed);
     mt1.pid.pid_update();
     mt2.pid.pid_update();
+    robotSpeed = (mt1.enc.mt_speed + mt2.enc.mt_speed) / 2;
+    robotOdom += robotSpeed * 0.02;
     speedToCCR(mt1.pid.pid_getOp(), mt2.pid.pid_getOp());
+}
+
+void RobotControl::clearRobotOdom()
+{
+    robotOdom = 0;
 }

@@ -11,6 +11,26 @@ using namespace std;
 
 RobotControl rc;
 
+// 状态标志位
+uint8_t startMove = 0;
+uint8_t arrivedGoal = 0;
+uint8_t isMoving = 0;
+uint8_t currentPoint = 0;
+uint8_t currentWay = 1;
+
+// void toggleFlag(uint8_t* flag)
+// {
+// 	if(flag == 0)
+// 	{
+// 		flag = (uint8_t)1;
+// 	}
+// 	else
+// 	{
+// 		flag = (uint8_t)0;
+// 	}
+// }
+
+// 定时中断
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim == &htim4)
@@ -23,6 +43,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	}
 }
 
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    UNUSED(GPIO_Pin);
+    if(GPIO_Pin == DrugDetector_Pin)
+    {
+		if(isMoving == 0)
+		{
+			startMove = 1;
+		}
+    }
+}
+
+// main函数
 void startup()
 {
 	HAL_Delay(200);
@@ -39,25 +72,25 @@ void startup()
     rc.mt2.pid.pid_setParam(1.3,0.1,0.1);
     rc.setSpeed(0,0);
 
-	while(1)
+	while(startMove == 0)
 	{
-		if(getButtomState(1) == 1)
-		{
-			break;
-		}
+
 	}
 
 	while(1)
 	{
-		OLED_ShowFNum(1,1,rc.mt1.enc.enc_getSpeed(),5,3);
-		OLED_ShowFNum(2,1,rc.mt2.enc.enc_getSpeed(),5,3);
-        if(CrossDetect() == 1)
-        {
-            rc.setSpeed(0,0);
-        }
-		else
+		OLED_ShowFNum(1,1,rc.mt1.enc.mt_speed,5,3);
+		OLED_ShowFNum(2,1,rc.mt2.enc.mt_speed,5,3);
+		if(startMove == 1)
 		{
-			rc.setSpeed(0.3,0+Gray_control());
+			if(CrossDetect() == 1)
+			{
+				rc.setSpeed(0,0);
+			}
+			else
+			{
+				rc.setSpeed(0.3,0+Gray_control());
+			}
 		}
 	}
 }

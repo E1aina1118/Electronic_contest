@@ -73,6 +73,9 @@ void Error_Handler(void);
 #define GrayR2_GPIO_Port GPIOB
 #define GrayR1_Pin GPIO_PIN_11
 #define GrayR1_GPIO_Port GPIOA
+#define DrugDetector_Pin GPIO_PIN_12
+#define DrugDetector_GPIO_Port GPIOA
+#define DrugDetector_EXTI_IRQn EXTI15_10_IRQn
 
 /* USER CODE BEGIN Private defines */
 
