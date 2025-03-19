@@ -1,5 +1,21 @@
 #include "main.h"
 #include "user/Motor.h"
+#include "user/start.h"
+
+extern float time_cnt;
+
+float getAbs(float value)
+{
+    if(value < 0)
+    {
+        return -value;
+    }
+    else
+    {
+        return value;
+    }
+}
+
 
 // PID
 void PID::pid_update() {
@@ -9,11 +25,30 @@ void PID::pid_update() {
     op = kp * error + ki * integral + kd * derivative;
     prevError = error;
 }
+
+void PID::pid_update_rotate()
+{
+    error = goal - current;
+    if (error < -180)
+    {
+        error = 2 * 180 + error;
+    }
+    else if (error > 180)
+    {
+        error = error - 2 * 180;
+    }
+    integral += error;
+    derivative = error - prevError;
+    op = kp * error + ki * integral + kd * derivative;
+    prevError = error;
+}
+
 void PID::pid_setParam(float kp_, float ki_, float kd_) {
     kp = kp_;
     ki = ki_;
     kd = kd_;
 }
+
 float PID::pid_getOp()
 {
 	if(op > limMax)
@@ -26,14 +61,38 @@ float PID::pid_getOp()
 	}
 	return op;
 }
+
 void PID::pid_setCurrent(float current_)
 {
 	current = current_;
 }
+
 void PID::pid_setGoal(float goal_)
 {
 	goal = goal_;
 }
+
+void PID::pid_setLim(float max)
+{
+    limMax = max;
+}
+
+void PID::pid_clear()
+{
+    kp = 0.0f;
+    ki = 0.0f;
+    kd = 0.0f;
+    integral = 0.0f;
+    derivative = 0.0f;
+    goal = 0.0f;
+    current = 0.0f;
+    error = 0.0f;
+    prevError = 0.0f;
+    limMin = 0.0f;
+    limMax = 0.0f;
+    op = 0.0f;
+}
+
 
 // Encoder
 Encoder::Encoder(uint8_t motornum_)
@@ -47,14 +106,17 @@ Encoder::Encoder(uint8_t motornum_)
         timx = &htim1;
     }
 }
+
 void Encoder::read_cnt()
 {
     cnt = (int16_t)__HAL_TIM_GET_COUNTER(timx);
 }
+
 void Encoder::enc_getSpeed()
 {
     mt_speed = -(cnt * 0.065 * 3.14)/(0.02 * 897.6);
 }
+
 
 // Motor
 Motor::Motor(uint8_t motornum_) : pid(), enc(motornum_), motornum(motornum_)
@@ -68,6 +130,7 @@ Motor::Motor(uint8_t motornum_) : pid(), enc(motornum_), motornum(motornum_)
         PWMChannel = TIM_CHANNEL_1;
     }
 }
+
 void Motor::setMotorDirection(uint8_t direction)
 {
     if(motornum == 1)
@@ -107,13 +170,16 @@ void Motor::setMotorDirection(uint8_t direction)
         }
     }
 }
+
 void Motor::setMotorCCR(uint16_t ccr)
 {
     __HAL_TIM_SET_COMPARE(&htim3, PWMChannel, ccr);
 }
 
+
 // RobotControl
 RobotControl::RobotControl() : mt1(1), mt2(2){}
+
 void RobotControl::speedToCCR(float speed1, float speed2)
 {
     if (speed1 > 0)
@@ -172,7 +238,105 @@ void RobotControl::robotUpdate()
     speedToCCR(mt1.pid.pid_getOp(), mt2.pid.pid_getOp());
 }
 
+void RobotControl::rotate_turn()
+{
+    float start_time = 0;
+    time_cnt = 0;
+    rotatePid.pid_setParam(0.02,0.01,0);
+    rotatePid.pid_setLim(10);
+    rotatePid.pid_setGoal(yaw+160);
+    while(1)
+    {
+        rotatePid.pid_setCurrent(yaw);
+        rotatePid.pid_update_rotate();
+        setSpeed(0,rotatePid.pid_getOp());
+        if(getAbs(rotatePid.error) <= 2)
+        {
+            if(start_time == 0)
+            {
+                start_time = time_cnt;
+            }
+            else if((time_cnt - start_time) >= 0.3)
+            {
+                setSpeed(0,0);
+                break;
+            }
+        }
+        else
+        {
+            start_time = 0;
+        }
+    }
+}
+
+void RobotControl::rotate_left()
+{
+    float start_time = 0;
+    time_cnt = 0;
+    rotatePid.pid_setParam(0.02,0.01,0);
+    rotatePid.pid_setLim(5);
+    rotatePid.pid_setGoal(yaw+80);
+    while(1)
+    {
+        rotatePid.pid_setCurrent(yaw);
+        rotatePid.pid_update_rotate();
+        setSpeed(0,rotatePid.pid_getOp());
+        if(getAbs(rotatePid.error) <= 2)
+        {
+            if(start_time == 0)
+            {
+                start_time = time_cnt;
+            }
+            else if((time_cnt - start_time) >= 0.3)
+            {
+                setSpeed(0,0);
+                break;
+            }
+        }
+        else
+        {
+            start_time = 0;
+        }
+    }
+}
+
+void RobotControl::rotate_right()
+{
+    float start_time = 0;
+    time_cnt = 0;
+    rotatePid.pid_setParam(0.02,0.01,0);
+    rotatePid.pid_setLim(10);
+    rotatePid.pid_setGoal(yaw-80);
+    while(1)
+    {
+        rotatePid.pid_setCurrent(yaw);
+        rotatePid.pid_update_rotate();
+        setSpeed(0,rotatePid.pid_getOp());
+        if(getAbs(rotatePid.error) <= 2)
+        {
+            if(start_time == 0)
+            {
+                start_time = time_cnt;
+            }
+            else if((time_cnt - start_time) >= 0.3)
+            {
+                setSpeed(0,0);
+                break;
+            }
+        }
+        else
+        {
+            start_time = 0;
+        }
+    }
+}
+
 void RobotControl::clearRobotOdom()
 {
     robotOdom = 0;
+}
+
+float RobotControl::getRobotOdom()
+{
+    return robotOdom;
 }

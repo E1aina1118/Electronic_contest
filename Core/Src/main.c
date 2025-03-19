@@ -24,6 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "user/start.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
