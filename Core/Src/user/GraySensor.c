@@ -3,11 +3,6 @@
 uint8_t L1_Val, L2_Val, M_Val, R1_Val, R2_Val;
 float Line_Num;
 
-float degrees_to_rad(float degrees)
-{
-	return degrees * (3.1415f / 180.0f);
-}
-
 /**
   * @brief:1:not white 0:white
   */
@@ -25,8 +20,8 @@ float Gray_control(void)
 	Gray_Get_TTL();
 	  
 	if(L2_Val == 0 &&  M_Val == 1 && R2_Val == 0 )  Line_Num =  0;//ֱstright
-	if(L2_Val == 0 &&  M_Val == 0 && R2_Val == 1) Line_Num =  -degrees_to_rad(10);//too left
-    if(L2_Val == 1 &&  M_Val == 0 && R2_Val == 0) Line_Num = degrees_to_rad(10);//too right
+	if(L2_Val == 0 &&  M_Val == 0 && R2_Val == 1) Line_Num =  -10;//too left
+    if(L2_Val == 1 &&  M_Val == 0 && R2_Val == 0) Line_Num = 10;//too right
 
 	return Line_Num;
 }

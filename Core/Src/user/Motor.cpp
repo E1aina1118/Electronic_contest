@@ -16,6 +16,11 @@ float getAbs(float value)
     }
 }
 
+float degrees_to_rad(float degrees)
+{
+	return degrees * (3.1415f / 180.0f);
+}
+
 
 // PID
 void PID::pid_update() {
@@ -219,6 +224,7 @@ void RobotControl::speedToCCR(float speed1, float speed2)
 void RobotControl::setSpeed(float v, float w)
 {
     float v1,v2;
+    w = degrees_to_rad(w);
     v1 = v - w*L/2;
     v2 = v + w*L/2;
     mt1.pid.pid_setGoal(v1);

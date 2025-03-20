@@ -5,15 +5,15 @@
 #define MAX_PATH_LEN 20  // 假设最大路径长度
 
 // 内部函数：将方向数字映射为对应字符
-static char mapDir(int d) {
-    switch(d) {
-        case 1: return 'U';  // 上
-        case 2: return 'L';  // 左
-        case 3: return 'D';  // 下
-        case 4: return 'R';  // 右
-        default: return '?';
-    }
-}
+// static char mapDir(int d) {
+//     switch(d) {
+//         case 1: return 'U';  // 上
+//         case 2: return 'L';  // 左
+//         case 3: return 'D';  // 下
+//         case 4: return 'R';  // 右
+//         default: return '?';
+//     }
+// }
 
 // 内部递归辅助函数
 // 参数说明：
@@ -32,7 +32,8 @@ static int dfsHelper(int current, int goal, int *visited, char *tempPath, int *i
         if (edge[current][i] != 0 && !visited[i]) {
             if (dfsHelper(i, goal, visited, tempPath, index)) {
                 // 记录从当前节点到 i 的边所对应的方向字符（后加入数组中，最后需逆序）
-                tempPath[(*index)++] = mapDir(edge[current][i]);
+                // tempPath[(*index)++] = mapDir(edge[current][i]);
+                tempPath[(*index)++] = '0' + edge[current][i];
                 return 1;
             }
         }

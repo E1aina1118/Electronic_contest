@@ -16,3 +16,17 @@ extern int edge[NODE_COUNT][NODE_COUNT];
 void dfs(int start, int goal, char *result);
 
 #endif
+/*
+ *   12              13 
+ *   |               |
+ *   9-------10-----11        
+ *   |       |       |
+ *   7       |       8     1->'U'（上）
+ *     4-----5-----6       2->'L'（左）
+ *           |             3->'D'（下）
+ *           |             4->'R'（右）
+ *     1-----2-----3
+ *           |
+ *           |  
+ *           0
+*/
