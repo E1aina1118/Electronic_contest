@@ -84,17 +84,17 @@ void PID::pid_setLim(float max)
 
 void PID::pid_clear()
 {
-    kp = 0.0f;
-    ki = 0.0f;
-    kd = 0.0f;
+    // kp = 0.0f;
+    // ki = 0.0f;
+    // kd = 0.0f;
     integral = 0.0f;
     derivative = 0.0f;
     goal = 0.0f;
     current = 0.0f;
     error = 0.0f;
     prevError = 0.0f;
-    limMin = 0.0f;
-    limMax = 0.0f;
+    // limMin = 0.0f;
+    // limMax = 0.0f;
     op = 0.0f;
 }
 
@@ -121,7 +121,6 @@ void Encoder::enc_getSpeed()
 {
     mt_speed = -(cnt * 0.065 * 3.14)/(0.02 * 897.6);
 }
-
 
 // Motor
 Motor::Motor(uint8_t motornum_) : pid(), enc(motornum_), motornum(motornum_)
@@ -239,8 +238,11 @@ void RobotControl::robotUpdate()
     mt2.pid.pid_setCurrent(mt2.enc.mt_speed);
     mt1.pid.pid_update();
     mt2.pid.pid_update();
-    robotSpeed = (mt1.enc.mt_speed + mt2.enc.mt_speed) / 2;
-    robotOdom += robotSpeed * 0.02;
+    robotOdom += -(mt1.enc.cnt + mt2.enc.cnt) / 2 * 0.00091;
+    // 里程计
+    // 轮子转一圈11*20.4 = 224.4个脉冲
+    // 轮子转一圈走0.2042米
+    // 一个cnt = 0.2042 / 224.4
     speedToCCR(mt1.pid.pid_getOp(), mt2.pid.pid_getOp());
 }
 

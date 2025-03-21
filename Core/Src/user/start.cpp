@@ -30,12 +30,12 @@ char rnum = '*';
 uint8_t k210_goalNum;
 
 // 状态标志位
-uint8_t isRotating = 0;
-uint8_t startFlag = 0;
-uint8_t crossFlag = 0;
-uint8_t currentWay = 1; // 1上 2左 3下 4右
-int8_t atCross10Flag = 0; // 1 向左走 2 向右走
-int8_t atCross10Way = 0; // 1 现在面朝左边 2右边
+volatile uint8_t isRotating = 0;
+volatile uint8_t startFlag = 0;
+volatile uint8_t crossFlag = 0;
+volatile uint8_t currentWay = 1; // 1上 2左 3下 4右
+volatile int8_t atCross10Flag = 0; // 1 向左走 2 向右走
+volatile int8_t atCross10Way = 0; // 1 现在面朝左边 2右边
 
 // 地图
 int edge[14][14];
@@ -71,6 +71,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			{
 				rxState = 3;
 			}
+			else if(rxBuffer == 's')
+			{
+				rxState = 4;
+			}
 			else
 			{
 				rxState = 0;
@@ -79,16 +83,24 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		else if(rxState == 2)
 		{
 			lnum = rxBuffer;
-			rxState = 4;
+			rxState = 5;
 		}
 		else if(rxState == 3)
 		{
 			rnum = rxBuffer;
-			rxState = 4;
+			rxState = 5;
 		}
 		else if(rxState == 4)
 		{
-			rxState = 0;
+			k210_goalNum = rxBuffer - '0';
+			rxState = 5;
+		}
+		else if(rxState == 5)
+		{
+			if(rxBuffer == 'f')
+			{
+				rxState = 0;
+			}
 		}
 		HAL_UART_Receive_IT(&huart2,(uint8_t*)&rxBuffer,1);
 	}
@@ -240,13 +252,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 		if(isRotating == 1)
 		{
-			OLED_ShowFNum(4,1,rc.yaw,5,2);
+			OLED_ShowFNum(4,1,rc.rotatePid.error,5,2);
 			rc.rotatePid.pid_setCurrent(rc.yaw);
 			rc.rotatePid.pid_update_rotate();
 			rc.setSpeed(0,rc.rotatePid.pid_getOp());
-			if(getAbs(rc.rotatePid.error) <= 5)
+			if(getAbs(rc.rotatePid.error) <= 3)
 			{
 				isRotating = 0;
+				OLED_Clear();
 			}
 		}
 		crossFlag = CrossDetect();
@@ -261,10 +274,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		mpu_dmp_get_data(&pitch1,&roll1,&yaw1);
 		rc.yaw = yaw1;
 	}
-	if(GPIO_Pin == GPIO_PIN_12)
-	{
-		startFlag = 1;
-	}
     UNUSED(GPIO_Pin);
 }
 
@@ -278,6 +287,7 @@ void rotate_left()
 	}
 	rc.setSpeed(0,0);
 	mapUpdateWay(1);
+	rc.rotatePid.pid_clear();
 }
 
 void rotate_right()
@@ -286,9 +296,13 @@ void rotate_right()
 	isRotating = 1;
 	while(isRotating == 1)
 	{
+		OLED_ShowNum(2,1,isRotating,2);
+		OLED_ShowFNum(3,1,time_cnt,5,2);
 	}
+	OLED_Clear();
 	rc.setSpeed(0,0);
 	mapUpdateWay(-1);
+	rc.rotatePid.pid_clear();
 }
 
 void rotate_turn()
@@ -297,16 +311,24 @@ void rotate_turn()
 	isRotating = 1;
 	while(isRotating == 1)
 	{
+		OLED_ShowNum(2,1,isRotating,2);
+		OLED_ShowFNum(3,1,time_cnt,5,2);
 	}
 	rc.setSpeed(0,0);
 	mapUpdateWay(2);
+	rc.rotatePid.pid_clear();
 }
 
 void waitStartSignal()
 {
 	while(1)
 	{
-		if(startFlag == 1)
+		if(startFlag == 0 && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_SET)
+		{
+			startFlag = 1;
+			break;
+		}
+		else if(startFlag == 1 && HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_12) == GPIO_PIN_RESET)
 		{
 			startFlag = 0;
 			break;
@@ -340,6 +362,7 @@ void goGivenDistance(float distance)
 	rc.robotOdom = 0;
 	while(1)
 	{
+		OLED_ShowFNum(2,1,rc.robotOdom,4,1);
 		rc.setSpeed(0.3, Gray_control());
 		if(rc.robotOdom >= distance)
 		{
@@ -365,8 +388,9 @@ void detectGoalNum()
     double startTime = time_cnt;
 
     while (1) {
+		OLED_ShowNum(2,1,k210_goalNum,2);
         // 如果 k210_goalNum 发生变化，重置计时
-        if(k210_goalNum != previousNum)
+        if(k210_goalNum != previousNum || k210_goalNum == 0)
 		{
             previousNum = k210_goalNum;
             startTime = time_cnt;
@@ -374,16 +398,17 @@ void detectGoalNum()
 		else
 		{
 			// 如果值保持不变，检查持续时间
-			if ((time_cnt - startTime) >= 3.0)
+			if ((time_cnt - startTime) >= 3.0 && k210_goalNum != 0)
 			{
 				goalNum = k210_goalNum;
 				break;
 			}
 		}
+		
     }
+	OLED_ShowNum(2,5,goalNum,2);
+	OLED_Clear();
 }
-
-
 
 // main函数
 void startup()
@@ -399,8 +424,8 @@ void startup()
 	// 设置pid参数
     rc.mt1.pid.pid_setParam(1.3,0.1,0.1);
     rc.mt2.pid.pid_setParam(1.3,0.1,0.1);
-	rc.rotatePid.pid_setParam(0.2,0,0);
-	rc.rotatePid.pid_setLim(5);
+	rc.rotatePid.pid_setParam(13,0.5,0.8);
+	rc.rotatePid.pid_setLim(90);
 
 	while(MPU_Init()!=0);
 	while(mpu_dmp_init()!=0);
@@ -411,84 +436,98 @@ void startup()
 	mission = 1;
 	HAL_UART_Receive_IT(&huart2,(uint8_t*)&rxBuffer,1);
 
+	OLED_ShowNum(1,1,111,3);
+	waitStartSignal();
+	rotate_left();
+	rotate_right();
+
 	while(1)
 	{
-		OLED_ShowChar(1,1,rxBuffer);
-		OLED_ShowChar(2,1,lnum);
-		OLED_ShowChar(3,1,rnum);
-		OLED_ShowFNum(4,1,time_cnt,5,2);
-		if(mission == 1)
-		{
-			detectGoalNum();
-			waitStartSignal();
-			fallowLine();
-			if(goalNum == 1)
-			{
-				rotate_left();
-			}
-			else if(goalNum == 2)
-			{
-				rotate_right();
-			}
-			fallowLine();
-			waitStartSignal();
-			rotate_turn();
-			fallowLine();
-			rotate_right();
-			fallowLine();
-			mission = 2;
-		}
-		else if(mission == 2)
-		{
-			detectGoalNum();
-			waitStartSignal();
-			fallowLine();
-			nextPosition = 5;
-			goGivenDistance(0.6);
-			buildMap();
-			dfs(5,correspond[goalNum],route);
-			fallowLine();
-			explainRoute();
-			waitStartSignal();
-			dfs(correspond[goalNum], correspond[0], route);
-			explainRoute();
-			mission = 2;
-		}
-		else if(mission == 3)
-		{
-			detectGoalNum();
-			waitStartSignal();
-			fallowLine();
-			fallowLine();
-			goGivenDistance(0.75);
-			nextPosition = 10;
-			rotateGivenDegrees(20);
-			atCross10Way = 1;
-			buildMap();
-			rotateGivenDegrees(-40);
-			atCross10Way = -1;
-			buildMap();
-			rotateGivenDegrees(20);
-			fallowLine();
-			if(atCross10Flag == 1)
-			{
-				nextPosition = 9;
-				rotate_left();
-			}
-			else if(atCross10Flag == -1)
-			{
-				nextPosition = 11;
-				rotate_right();
-			}
-			goGivenDistance(60);
-			buildMap();
-			dfs(nextPosition,correspond[goalNum],route);
-			fallowLine();
-			explainRoute();
-			waitStartSignal();
-			dfs(correspond[goalNum],correspond[0],route);
-			explainRoute();
-			mission = 4;
-		}
+		// if(mission == 1)
+		// {
+		// 	OLED_Clear();
+		// 	detectGoalNum();
+		// 	OLED_ShowNum(1,1,111,3);
+		// 	waitStartSignal();
+		// 	OLED_ShowNum(1,1,222,3);
+		// 	fallowLine();
+		// 	OLED_ShowNum(1,1,333,3);
+		// 	if(goalNum == 1)
+		// 	{
+		// 		rotate_left();
+		// 		OLED_ShowNum(1,1,444,3);
+		// 	}
+		// 	else if(goalNum == 2)
+		// 	{
+		// 		rotate_right();
+		// 		OLED_ShowNum(1,1,555,3);
+		// 	}
+		// 	fallowLine();
+		// 	OLED_ShowNum(1,1,666,3);
+		// 	waitStartSignal();
+		// 	OLED_ShowNum(1,1,777,3);
+		// 	rotate_turn();
+		// 	OLED_ShowNum(1,1,888,3);
+		// 	fallowLine();
+		// 	OLED_ShowNum(1,1,999,3);
+		// 	rotate_right();
+		// 	OLED_ShowNum(1,1,122,3);
+		// 	fallowLine();
+		// 	mission = 2;
+		// }
+		// else if(mission == 2)
+		// {
+		// 	detectGoalNum();
+		// 	waitStartSignal();
+		// 	fallowLine();
+		// 	nextPosition = 5;
+		// 	goGivenDistance(0.6);
+		// 	buildMap();
+		// 	dfs(5,correspond[goalNum],route);
+		// 	fallowLine();
+		// 	explainRoute();
+		// 	waitStartSignal();
+		// 	dfs(correspond[goalNum], correspond[0], route);
+		// 	explainRoute();
+		// 	mission = 2;
+		// }
+		// else if(mission == 3)
+		// {
+		// 	detectGoalNum();
+		// 	waitStartSignal();
+		// 	fallowLine();
+		// 	fallowLine();
+		// 	goGivenDistance(0.75);
+		// 	nextPosition = 10;
+		// 	rotateGivenDegrees(20);
+		// 	atCross10Way = 1;
+		// 	buildMap();
+		// 	rotateGivenDegrees(-40);
+		// 	atCross10Way = -1;
+		// 	buildMap();
+		// 	rotateGivenDegrees(20);
+		// 	fallowLine();
+		// 	if(atCross10Flag == 1)
+		// 	{
+		// 		nextPosition = 9;
+		// 		rotate_left();
+		// 	}
+		// 	else if(atCross10Flag == -1)
+		// 	{
+		// 		nextPosition = 11;
+		// 		rotate_right();
+		// 	}
+		// 	goGivenDistance(60);
+		// 	buildMap();
+		// 	dfs(nextPosition,correspond[goalNum],route);
+		// 	fallowLine();
+		// 	OLED_ShowNum(1,1,133,3);
+		// 	explainRoute();
+		// 	OLED_ShowNum(1,1,144,3);
+		// 	waitStartSignal();
+		// 	dfs(correspond[goalNum],correspond[0],route);
+		// 	explainRoute();
+		// 	mission = 4;
+		// }
 	}
 }
