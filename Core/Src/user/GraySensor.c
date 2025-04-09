@@ -20,8 +20,10 @@ float Gray_control(void)
 	Gray_Get_TTL();
 	  
 	if(L2_Val == 0 &&  M_Val == 1 && R2_Val == 0 )  Line_Num =  0;//ֱstright
-	if(L2_Val == 0 &&  M_Val == 0 && R2_Val == 1) Line_Num =  -10;//too left
-    if(L2_Val == 1 &&  M_Val == 0 && R2_Val == 0) Line_Num = 10;//too right
+	if(L2_Val == 0 &&  M_Val == 0 && R2_Val == 1) Line_Num =  -20;//too left
+    if(L2_Val == 1 &&  M_Val == 0 && R2_Val == 0) Line_Num = 20;//too right
+	if(L1_Val == 1 && L2_Val == 0 &&  M_Val == 0 && R2_Val == 0 && R1_Val == 0) Line_Num = 50;
+	if(L1_Val == 0 && L2_Val == 0 &&  M_Val == 0 && R2_Val == 0 && R1_Val == 1) Line_Num = -50;
 
 	return Line_Num;
 }
@@ -29,8 +31,21 @@ float Gray_control(void)
 //检测十字，返回1表示十字，返回2表示到达，否则返回0
 uint8_t CrossDetect(void)
 {
-	if (L1_Val == 1 && L2_Val == 1 && M_Val == 1 && R1_Val == 1 && R2_Val == 1) return 1;
-	if (L1_Val == 0 && L2_Val == 0 && M_Val == 0 && R1_Val == 0 && R2_Val == 0) return 2;
+	Gray_Get_TTL();
+	// if (L1_Val == 1 && L2_Val == 1 && M_Val == 1 && R1_Val == 1 && R2_Val == 1) return 1;
+	// if (L1_Val == 0 && L2_Val == 0 && M_Val == 0 && R1_Val == 0 && R2_Val == 0) return 2;
+	if (L2_Val == 1 && M_Val == 1 && R2_Val == 1) return 1;
+	if (L2_Val == 0 && M_Val == 0 && R2_Val == 0) return 2;
+	else return 0;
+}
+
+uint8_t CrossDetect2(void)
+{
+	Gray_Get_TTL();
+	// if (L1_Val == 1 && L2_Val == 1 && M_Val == 1 && R1_Val == 1 && R2_Val == 1) return 1;
+	// if (L1_Val == 0 && L2_Val == 0 && M_Val == 0 && R1_Val == 0 && R2_Val == 0) return 2;
+	if (M_Val == 1 && R2_Val == 1 && R1_Val == 1) return 1;
+	if (L2_Val == 1 && M_Val == 1 && L1_Val == 1) return 1;
 	else return 0;
 }
 
